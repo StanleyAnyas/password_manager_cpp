@@ -1,0 +1,31 @@
+.generaScuseUfficio,
+.generaScuseDeveloper,
+.generaScuseFamiglia{
+    background-color: #04AA6D;
+    border: none;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    box-shadow: 2px 3px #888888;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.generaScuseDeveloper:hover,
+.generaScuseUfficio:hover,
+.generaScuseFamiglia:hover{
+    opacity: 0.5;
+}
+
+.scuseGenerate{
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.btnDiv{
+    display: flex;
+    justify-content: space-around;
+}
+.dropdown-item:hover{
+    background-color: rgb(122, 230, 110);
+}
