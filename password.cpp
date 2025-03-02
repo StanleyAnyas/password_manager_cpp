@@ -13,6 +13,7 @@
 #include <random>
 #include <ctime>
 #include <algorithm>
+#include <ncurses/ncurses.h>
 
 using namespace std;
 
@@ -44,15 +45,15 @@ const string GREEN_CODE = "\033[1;32m";
 // }
 
 string encryptDecrypt(std::string password) {
-    const string key = "MYSECRETKEY";
-    std::string output = password;
-    size_t keyLength = key.length();
+    // const string key = "MYSECRETKEY";
+    // std::string output = password;
+    // size_t keyLength = key.length();
 
-    for (size_t i = 0; i < password.length(); ++i) {
-        output[i] = password[i] ^ key[i % keyLength];
-    }
+    // for (size_t i = 0; i < password.length(); ++i) {
+    //     output[i] = password[i] ^ key[i % keyLength];
+    // }
 
-    return output;
+    return password;
 }
 
 string toLowerCase(const std::string& str) {
@@ -101,8 +102,14 @@ bool deletePassword(string nameOfPassword){
     }
     return found;
 }
+struct PasswordInfo {
+    bool found;
+    std::string name;
+    std::string password;
+    std::string username;
+};
 
-tuple<bool, string, string> checkIfPasswordIsStored(string nameOfPassword){
+PasswordInfo checkIfPasswordIsStored(string nameOfPassword){
     ifstream file("password.txt");
     string line;
     if(file.is_open()){
@@ -110,16 +117,16 @@ tuple<bool, string, string> checkIfPasswordIsStored(string nameOfPassword){
         while (getline(file, line)) {
             // cout <<line <<endl;
             istringstream stream(line);
-            string storedName, storedPassword;
-            stream >> storedName >> storedPassword;
+            string storedName, storedPassword, storedUsername;
+            stream >> storedName >> storedPassword >> storedUsername;
             // cout << storedName <<endl;
             if (toLowerCase(storedName) == toLowerCase(nameOfPassword)) {
-                return {true, storedName, encryptDecrypt(storedPassword)};
+                return {true, storedName, encryptDecrypt(storedPassword), storedUsername};
             }
         } 
-        return {false, "error", "Not found"};
+        return {false, "error", "Not found", " "};
     }
-    return {false, "error", "error opening file"};
+    return {false, "error", "error opening file", " "};
 }
 
 bool isPasswordTheSame(string password, string confirmPassword){
@@ -129,8 +136,8 @@ bool isPasswordTheSame(string password, string confirmPassword){
     return false;
 }
 
-void writePasswordToFile(string password, string passwordName){
-    auto [found, nameOfPassword, passwordstored] = checkIfPasswordIsStored(passwordName);
+void writePasswordToFile(string password, string passwordName, string username = "username"){
+    auto [found, nameOfPassword, passwordstored, storedUsername] = checkIfPasswordIsStored(passwordName);
     if(found){
         cout << "\033[1;31mPassword name already exists\033[0m" <<endl;
         return;
@@ -139,7 +146,7 @@ void writePasswordToFile(string password, string passwordName){
     if(file.is_open()){
         string hashedPassword = encryptDecrypt(password);
         // cout << encryptDecrypt(hashedPassword) <<endl;
-        file << passwordName << " " << hashedPassword <<endl;
+        file << passwordName << " " << hashedPassword << " " << username <<endl;
         cout << "\033[1;32mpassword saved\033[0m" << endl;
         file.close();
     }else{
@@ -151,18 +158,21 @@ void addPassword(){
     string nameOfPassword;
     string password;
     string confirmPassword;
+    string username;
     cout << "\033[1;33mName of password\033[0m" <<endl;
     cin >> nameOfPassword;
     if(nameOfPassword == ""){  
         cout << RED_CODE <<"Name of password cant be empty"<<BLACK_CODE <<endl;
         return;
     }
+    cout << YELLOW_CODE <<"Insert the username of the password "<<BLACK_CODE<<endl;
+    cin >> username;
     cout << "\033[1;33mInsert the password\033[0m" <<endl;
     cin >> password;
     cout << "\033[1;33mConfirm password\033[0m" <<endl;
     cin >> confirmPassword;
     if(isPasswordTheSame(password, confirmPassword)){
-        writePasswordToFile(password, nameOfPassword);
+        writePasswordToFile(password, nameOfPassword, username);
     }else{
         cout << "\033[1;31mPassword are not the same\033[0m" <<endl;
     }
@@ -173,7 +183,7 @@ void retrievePassword(){
     string nameOfPassword;
     cout << "\033[1;33mName of password you want to retrieve \033[0m" << endl;
     cin >> nameOfPassword;
-    auto [found, storedname, storedPassword] = checkIfPasswordIsStored(nameOfPassword);
+    auto [found, storedname, storedPassword, storedUsername] = checkIfPasswordIsStored(nameOfPassword);
     if(found){
         cout << "\033[1;32mThe password for " << storedname << " is " << storedPassword << "\033[0m"<<endl;
     }else{
@@ -201,40 +211,6 @@ void callDeletePassword(){
     } while (sureDelete != 'Y' || sureDelete != 'y' );
     
     return;
-}
-
-void modifyPassword(){
-    string nameOfPasswordToModify;
-    string oldPassword;
-    string newPassword;
-    char sureToModify;
-    cout << "\033[1;33mName of password you want to modify \033[0m" <<endl;
-    cin >> nameOfPasswordToModify;
-    auto [found, nameofPassword, passwordStored] = checkIfPasswordIsStored(nameOfPasswordToModify);
-    if(found){
-        do
-        {
-            cout << "\033[1;33mAre you sure you want to modify the password (Y/N)\033[0m" <<endl;
-            cin >> sureToModify;
-            if(sureToModify == 'N' || sureToModify == 'n'){
-                return;
-            }
-        } while (sureToModify != 'Y' || sureToModify != 'y');
-
-        cout << "\033[1;33mInsert the old Password \033[0m" <<endl;
-        cin >> oldPassword;
-        if(oldPassword == passwordStored){
-            cout << "\033[1;33mEnter new password \033[0m" <<endl;
-            cin >> newPassword;
-            bool deleted = deletePassword(nameofPassword);
-            if(deleted){
-                writePasswordToFile(newPassword, nameofPassword);
-            }
-        }else{
-            cout << "\033[1;31mPassword not the same please try again \033[0m" <<endl;
-        }
-        return;
-    }
 }
 
 bool checkIfPasswordExist(string password){
@@ -286,37 +262,111 @@ string generatePasswordForUser() {
     return password;
 }
 
-void callGeneratePassword(){
+void modifyPassword(){
+    string nameOfPasswordToModify;
+    string oldPassword;
+    string newPassword;
+    char sureToModify;
+    cout << "\033[1;33mName of password you want to modify \033[0m" <<endl;
+    cin >> nameOfPasswordToModify;
+    auto [found, nameofPassword, passwordStored, storedUsername] = checkIfPasswordIsStored(nameOfPasswordToModify);
+    if(found){
+        do
+        {
+            cout << "\033[1;33mAre you sure you want to modify the password (Y/N)\033[0m" <<endl;
+            cin >> sureToModify;
+            if(sureToModify == 'N' || sureToModify == 'n'){
+                return;
+            }
+            cout <<sureToModify <<endl;
+        } while (sureToModify != 'Y' && sureToModify != 'y');
 
+        cout << "\033[1;33mInsert the old Password \033[0m" <<endl;
+        cin >> oldPassword;
+        if(oldPassword == passwordStored){
+            // ask the user if the want the program to generate a password for them
+            char passwordToBeGenerated;
+            do
+            {
+                cout << YELLOW_CODE << "Do you want the password to be generated (Y/N)" <<BLACK_CODE <<endl;
+                cin >> passwordToBeGenerated;
+            } while (passwordToBeGenerated != 'Y' && passwordToBeGenerated != 'y' && passwordToBeGenerated != 'N' && passwordToBeGenerated != 'n');
+            
+            // cout <<passwordToBeGenerated <<endl;
+            if(passwordToBeGenerated != 'Y' && passwordToBeGenerated != 'y'){
+                cout << "\033[1;33mEnter new password \033[0m" <<endl;
+                cin >> newPassword;
+            }else{
+                newPassword = generatePasswordForUser();
+                cout <<YELLOW_CODE <<"The generated password is " <<newPassword <<BLACK_CODE <<endl;
+            }
+            
+            bool deleted = deletePassword(nameofPassword);
+            if(deleted){
+                writePasswordToFile(newPassword, nameofPassword, storedUsername);
+            }
+        }else{
+            cout << "\033[1;31mPassword not the same please try again \033[0m" <<endl;
+        }
+        return;
+    }
+}
+
+
+void callGeneratePassword(){
     string nameOfPassword;
+    string username;
     char sureContinue;
     cout << "\033[1;33mName of Password \033[0m" <<endl;
     cin >> nameOfPassword;
-    auto [found, nameofPassword, passwordStored] = checkIfPasswordIsStored(nameOfPassword);
+    auto [found, nameofPassword, passwordStored, storedUsername] = checkIfPasswordIsStored(nameOfPassword);
     if(found){
         cout << "\033[1;31mPassword name already exist\033[0m" <<endl;
         return;
     }
+    cout <<YELLOW_CODE << "Insert Username" <<BLACK_CODE <<endl;
+    cin >> username;
     string passwordGenerated;
     do {
-        // passwordGenerated = "";
         passwordGenerated = generatePasswordForUser();
         cout << "\033[1;33mThe generated password is " << passwordGenerated <<"\033[0m" <<endl;
         cout << "\033[1;33mWould you like to continue (Y/N)\033[0m" <<endl;
         cin >> sureContinue;
     } while (sureContinue == 'N' || sureContinue == 'n');
     
-    writePasswordToFile(passwordGenerated, nameOfPassword);
+    writePasswordToFile(passwordGenerated, nameOfPassword, username);
+}
+
+void modifyUsername(){
+    string nameOfPasswordToModify;
+    string newUsername;
+    cout << YELLOW_CODE <<"The name of password to modify" <<BLACK_CODE <<endl;
+    cin >> nameOfPasswordToModify;
+    auto [found, nameOfPassword, passwordstored, storedUsername] = checkIfPasswordIsStored(nameOfPasswordToModify);
+    if(found){
+        cout << YELLOW_CODE<< "Insert new username" <<BLACK_CODE <<endl;
+        cin >> newUsername;
+        bool deleted = deletePassword(nameOfPasswordToModify);
+        if (deleted)
+        {
+            writePasswordToFile(passwordstored, nameOfPassword, newUsername);
+            cout << GREEN_CODE << "Username modified successfully" <<BLACK_CODE <<endl;
+        }
+        
+    }else{
+        cout << RED_CODE << "Name of password does not exist" << BLACK_CODE <<endl;
+        return;
+    }
 }
 
 void exitProgram(){
-    cout << "Exiting the program" <<endl;
+    cout << GREEN_CODE<<"Exiting the program" << BLACK_CODE<<endl;
     exit(0);
 }
 
 void determineChoice(char choice){
-    switch (choice)
-    {
+    // always check if the password file is already created before doing other operations 
+    switch (choice){
     case '1':
         addPassword();
         break;
@@ -327,24 +377,29 @@ void determineChoice(char choice){
         modifyPassword();
         break;
     case '4':
-        callGeneratePassword();
+        modifyUsername();
         break;
     case '5':
-        callDeletePassword();
+        callGeneratePassword();
         break;
     case '6':
+        callDeletePassword();
+        break;
+    case '7':
         exitProgram();
+        break;
     default:
         cout << "\033[1;31mNot an option try again\033[0m" <<endl;
         break;
     }
 }
 
+
 int main() {
+    // https://github.com/StanleyAnyas/password_manager_cpp
     char choice;
-    cout << "\033[1;33m1. Add Password\n2. Retrieve Password\n3. Modify Password\n4. Generate Password\n5. Delete Password \n6. Exit\033[0m \n\n";
+    cout << "\033[1;33m1. Add Password\n2. Retrieve Password\n3. Modify Password\n4. Modify Username\n5. Generate Password\n6. Delete Password \n7 Exit\033[0m \n\n";
     cin >> choice;
     determineChoice(choice);
-
     return 0;
 }
